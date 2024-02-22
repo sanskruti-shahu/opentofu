@@ -90,3 +90,21 @@ func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 		return nil
 	})
 }
+
+func StateEncryptionDisabled() StateEncryption {
+	return &stateDisabled{}
+}
+
+type stateDisabled struct{}
+
+func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, hcl.Diagnostics) {
+	return plainState, nil
+}
+func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
+	return encryptedState, nil
+}
+
+// TODO REMOVEME once state encryption is fully integrated into the codebase
+func StateEncryptionTODO() StateEncryption {
+	return &stateDisabled{}
+}
