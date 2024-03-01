@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -61,6 +62,9 @@ type ContextGraphWalker struct {
 	provisionerCache   map[string]provisioners.Interface
 	provisionerSchemas map[string]*configschema.Block
 	provisionerLock    sync.Mutex
+	functionCache      map[string]map[string]function.Function
+	functionProviders  map[string]providers.Interface
+	functionLock       sync.Mutex
 }
 
 func (w *ContextGraphWalker) EnterPath(path addrs.ModuleInstance) EvalContext {
@@ -109,6 +113,9 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		ProviderLock:          &w.providerLock,
 		ProvisionerCache:      w.provisionerCache,
 		ProvisionerLock:       &w.provisionerLock,
+		FunctionCache:         w.functionCache,
+		FunctionProviders:     w.functionProviders,
+		FunctionLock:          &w.functionLock,
 		ChangesValue:          w.Changes,
 		ChecksValue:           w.Checks,
 		StateValue:            w.State,
@@ -128,6 +135,8 @@ func (w *ContextGraphWalker) init() {
 	w.providerSchemas = make(map[string]providers.ProviderSchema)
 	w.provisionerCache = make(map[string]provisioners.Interface)
 	w.provisionerSchemas = make(map[string]*configschema.Block)
+	w.functionCache = make(map[string]map[string]function.Function)
+	w.functionProviders = make(map[string]providers.Interface)
 	w.variableValues = make(map[string]map[string]cty.Value)
 
 	// Populate root module variable values. Other modules will be populated
