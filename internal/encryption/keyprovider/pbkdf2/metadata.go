@@ -19,10 +19,6 @@ type Metadata struct {
 	KeyLength    int              `json:"key_length"`
 }
 
-func (m Metadata) isPresent() bool {
-	return len(m.Salt) != 0 && m.Iterations != 0 && m.HashFunction != "" && m.KeyLength != 0
-}
-
 func (m Metadata) validate() error {
 	if m.Iterations < 0 {
 		return keyprovider.ErrInvalidMetadata{

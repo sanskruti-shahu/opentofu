@@ -20,12 +20,7 @@ type keyProvider struct {
 	ctx context.Context
 }
 
-func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
-	inMeta := rawMeta.(*keyMeta)
-	outMeta := keyMeta{}
-	out := keyprovider.Output{}
-
-	// Generate new key pair
+func (p keyProvider) getSpec() (types.DataKeySpec, error) {
 	var spec types.DataKeySpec
 
 	for _, opt := range spec.Values() {
@@ -35,7 +30,15 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	if len(spec) == 0 {
-		return out, outMeta, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
+		return spec, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
+	}
+	return spec, nil
+}
+
+func (p keyProvider) EncryptionKey() ([]byte, keyprovider.KeyMeta, error) {
+	spec, err := p.getSpec()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	generatedKeyData, err := p.svc.GenerateDataKey(p.ctx, &kms.GenerateDataKeyInput{
@@ -44,28 +47,25 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	})
 
 	if err != nil {
-		return out, outMeta, err
+		return nil, nil, err
 	}
 
-	// Set initial outputs
-	out.EncryptionKey = generatedKeyData.Plaintext
-	out.DecryptionKey = generatedKeyData.Plaintext
-	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
+	return generatedKeyData.Plaintext, &keyMeta{
+		CiphertextBlob: generatedKeyData.CiphertextBlob,
+	}, nil
+}
 
-	if len(inMeta.CiphertextBlob) != 0 {
-		// We have an existing decryption key to decrypt
-		decryptedKeyData, err := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
-			KeyId:          aws.String(p.KMSKeyID),
-			CiphertextBlob: inMeta.CiphertextBlob,
-		})
+func (p keyProvider) DecryptionKey(rawMeta keyprovider.KeyMeta) ([]byte, error) {
+	inMeta := rawMeta.(*keyMeta)
 
-		if err != nil {
-			return out, outMeta, err
-		}
+	decryptedKeyData, err := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
+		KeyId:          aws.String(p.KMSKeyID),
+		CiphertextBlob: inMeta.CiphertextBlob,
+	})
 
-		// Override decryption key for the existing data
-		out.DecryptionKey = decryptedKeyData.Plaintext
+	if err != nil {
+		return nil, err
 	}
 
-	return out, outMeta, nil
+	return decryptedKeyData.Plaintext, nil
 }

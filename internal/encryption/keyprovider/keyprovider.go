@@ -12,5 +12,6 @@ type KeyProvider interface {
 	//
 	// The caller must pass in the same struct obtained from the Build function of the Config, with the decryption
 	// metadata read in. If no decryption metadata is present, the caller must pass in the struct unmodified.
-	Provide(decryptionMeta KeyMeta) (keysOutput Output, encryptionMeta KeyMeta, err error)
+	EncryptionKey() (keyOutput []byte, encryptionMeta KeyMeta, err error)
+	DecryptionKey(decryptionMeta KeyMeta) (keyOutput []byte, err error)
 }

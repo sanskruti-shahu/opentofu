@@ -21,7 +21,7 @@ func init() {
 	if err := DefaultRegistry.RegisterMethod(aesgcm.New()); err != nil {
 		panic(err)
 	}
-	if err := reg.RegisterKeyProvider(aws_kms.New()); err != nil {
+	if err := DefaultRegistry.RegisterKeyProvider(aws_kms.New()); err != nil {
 		panic(err)
 	}
 }

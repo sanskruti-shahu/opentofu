@@ -36,7 +36,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	}
 	// This performs a e2e validation run of the config -> methods flow.  It serves as a validation step and allows us to
 	// return detailed diagnostics here and simple errors below
-	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte), true)
 	return base, diags
 }
 
@@ -69,7 +69,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	}
 
 	// Mutates es.Meta
-	methods, diags := s.buildTargetMethods(es.Meta)
+	methods, diags := s.buildTargetMethods(es.Meta, true)
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
 		// This is also quite unlikely to happen as the constructor already has checked this code path
@@ -127,7 +127,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 
-		methods, diags := s.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+		methods, diags := s.buildTargetMethods(make(map[keyprovider.Addr][]byte), false)
 		if diags.HasErrors() {
 			// This cast to error here is safe as we know that at least one error exists
 			// This is also quite unlikely to happen as the constructor already has checked this code path
@@ -147,7 +147,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", es.Version, encryptionVersion)
 	}
 
-	methods, diags := s.buildTargetMethods(es.Meta)
+	methods, diags := s.buildTargetMethods(es.Meta, false)
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
 		// This is also quite unlikely to happen as the constructor already has checked this code path

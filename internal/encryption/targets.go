@@ -24,6 +24,7 @@ type targetBuilder struct {
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 
+	isEncrypt           bool
 	keyProviderMetadata map[keyprovider.Addr][]byte
 
 	// Used to build EvalContext (and related mappings)
@@ -32,13 +33,14 @@ type targetBuilder struct {
 	methods      map[method.Addr]method.Method
 }
 
-func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
+func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte, isEncrypt bool) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	builder := &targetBuilder{
 		cfg: base.enc.cfg,
 		reg: base.enc.reg,
 
+		isEncrypt: isEncrypt,
 		ctx: &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
 		},

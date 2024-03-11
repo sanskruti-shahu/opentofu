@@ -173,36 +173,49 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	// Add the metadata
-	if meta, ok := e.keyProviderMetadata[metakey]; ok {
-		err := json.Unmarshal(meta, keyMetaIn)
+	var output keyprovider.Output
+
+	if e.isEncrypt {
+		if meta, ok := e.keyProviderMetadata[metakey]; ok {
+			err := json.Unmarshal(meta, keyMetaIn)
+			if err != nil {
+				return append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
+					Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metakey, err.Error()),
+				})
+			}
+		}
+
+		output.DecryptionKey, err = keyProvider.DecryptionKey(keyMetaIn)
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
-				Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metakey, err.Error()),
+				Summary:  "Unable to fetch encryption key data",
+				Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
 			})
 		}
-	}
-
-	output, keyMetaOut, err := keyProvider.Provide(keyMetaIn)
-	if err != nil {
-		return append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unable to fetch encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
-		})
-	}
-
-	if keyMetaOut != nil {
-		e.keyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
-
+	} else {
+		var keyMetaOut any
+		output.EncryptionKey, keyMetaOut, err = keyProvider.EncryptionKey()
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Unable to encode encrypted metadata",
-				Detail:   fmt.Sprintf("metadata encoder for %s failed with error: %s", metakey, err.Error()),
+				Summary:  "Unable to fetch encryption key data",
+				Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
 			})
+		}
+
+		if keyMetaOut != nil {
+			e.keyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
+
+			if err != nil {
+				return append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unable to encode encrypted metadata",
+					Detail:   fmt.Sprintf("metadata encoder for %s failed with error: %s", metakey, err.Error()),
+				})
+			}
 		}
 	}
 

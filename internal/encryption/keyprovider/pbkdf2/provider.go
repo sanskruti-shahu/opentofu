@@ -37,39 +37,35 @@ func (p pbkdf2KeyProvider) generateMetadata() (*Metadata, error) {
 	return outMeta, nil
 }
 
-func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
+func (p pbkdf2KeyProvider) EncryptionKey() ([]byte, keyprovider.KeyMeta, error) {
+	outMeta, err := p.generateMetadata()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return goPBKDF2.Key(
+		[]byte(p.Passphrase),
+		outMeta.Salt,
+		outMeta.Iterations,
+		outMeta.KeyLength,
+		outMeta.HashFunction.Function(),
+	), outMeta, nil
+}
+
+func (p pbkdf2KeyProvider) DecryptionKey(rawMeta keyprovider.KeyMeta) ([]byte, error) {
 	if rawMeta == nil {
-		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+		return nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
 	inMeta := rawMeta.(*Metadata)
 
-	outMeta, err := p.generateMetadata()
-	if err != nil {
-		return keyprovider.Output{}, nil, err
+	if err := inMeta.validate(); err != nil {
+		return nil, err
 	}
-
-	var decryptionKey []byte
-	if inMeta.isPresent() {
-		if err := inMeta.validate(); err != nil {
-			return keyprovider.Output{}, nil, err
-		}
-		decryptionKey = goPBKDF2.Key(
-			[]byte(p.Passphrase),
-			inMeta.Salt,
-			inMeta.Iterations,
-			inMeta.KeyLength,
-			inMeta.HashFunction.Function(),
-		)
-	}
-
-	return keyprovider.Output{
-		EncryptionKey: goPBKDF2.Key(
-			[]byte(p.Passphrase),
-			outMeta.Salt,
-			outMeta.Iterations,
-			outMeta.KeyLength,
-			outMeta.HashFunction.Function(),
-		),
-		DecryptionKey: decryptionKey,
-	}, outMeta, nil
+	return goPBKDF2.Key(
+		[]byte(p.Passphrase),
+		inMeta.Salt,
+		inMeta.Iterations,
+		inMeta.KeyLength,
+		inMeta.HashFunction.Function(),
+	), nil
 }
